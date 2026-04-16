@@ -1,0 +1,107 @@
+services:
+  postgres:
+    image: postgis/postgis:16-3.4
+    container_name: plantation-db
+    env_file:
+      - ./backend/.env
+    ports:
+      - "5433:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d plantation_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: plantation-redis
+    ports:
+      - "6380:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  nodeodm:
+    image: opendronemap/nodeodm:latest
+    container_name: plantation-nodeodm
+    volumes:
+      - odm_data:/var/www/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:3000/info || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 15
+      start_period: 120s
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: plantation-backend
+    env_file:
+      - ./backend/.env
+    environment:
+      UPLOAD_DIR: /app/uploads
+      TILES_DIR: /app/tiles
+      YOLO_MODEL_PATH: /app/models/yolov9_trees.onnx
+    ports:
+      - "8080:8000"
+    volumes:
+      - uploads:/app/uploads
+      - tiles:/app/tiles
+      - ./tools/assets:/app/models:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  celery-worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: plantation-celery
+    command: celery -A app.celery_app worker --loglevel=info --concurrency=2
+    env_file:
+      - ./backend/.env
+    environment:
+      UPLOAD_DIR: /app/uploads
+      TILES_DIR: /app/tiles
+      YOLO_MODEL_PATH: /app/models/yolov9_trees.onnx
+    volumes:
+      - uploads:/app/uploads
+      - tiles:/app/tiles
+      - ./tools/assets:/app/models:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      nodeodm:
+        condition: service_started
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: plantation-frontend
+    ports:
+      - "5000:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+
+volumes:
+  pgdata:
+  uploads:
+  tiles:
+  odm_data:

@@ -1,0 +1,44 @@
+# Sample Data
+sample files/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+ENV/
+env/
+.env
+
+# Node.js
+node_modules/
+dist/
+build/
+.npm
+.eslintcache
+
+# Project Specific Runtime
+backend/app/uploads/
+backend/app/tiles/
+pgdata/
+uploads/
+tiles/
+
+# OS/IDE
+.DS_Store
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Docker
+.docker/
+backendv1
+frontendv1
+
+# Large ML model files (too large for Azure DevOps LFS free tier)
+*.onnx
+*.pt
+*.pth
+*.weights
